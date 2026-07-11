@@ -6,11 +6,6 @@ function clean(value) {
   return s === "" || s.toLowerCase() === "null" ? null : s;
 }
 
-/**
- * Server-side safety net on top of the AI's own judgement: re-validates
- * enum fields and the "must have email or mobile" rule so a misbehaving
- * model response can never corrupt the CRM data.
- */
 export function validateRecord(raw) {
   const record = {
     created_at: clean(raw.created_at),
@@ -46,7 +41,6 @@ export function validateRecord(raw) {
   }
 
   if (record.created_at && Number.isNaN(new Date(record.created_at).getTime())) {
-    // Not fatal - keep the record but note it, since created_at is optional metadata.
     record.crm_note = [record.crm_note, `(original created_at unparseable: "${raw.created_at}")`]
       .filter(Boolean)
       .join("; ");

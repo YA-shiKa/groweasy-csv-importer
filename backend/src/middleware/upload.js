@@ -1,6 +1,6 @@
 import multer from "multer";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB, matches frontend copy
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const storage = multer.memoryStorage();
 

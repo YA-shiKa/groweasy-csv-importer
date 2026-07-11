@@ -10,15 +10,9 @@ function getClient() {
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not set on the server.");
   }
-  // Note: Google has migrated Gemini API keys from the legacy "Standard key"
-  // format (AIza...) to a new "Auth key" format (AQ.Ab...). AI Studio issues
-  // AQ. keys by default now, and this is expected - not an error. AQ. keys
-  // work correctly against the native Gemini endpoint used by this SDK.
   return new GoogleGenerativeAI(apiKey);
 }
 
-// Structured output schema - forces Gemini to return valid, well-typed JSON
-// instead of us having to regex/parse free text out of the response.
 const responseSchema = {
   type: SchemaType.OBJECT,
   properties: {
@@ -122,14 +116,11 @@ async function callGeminiBatch(model, batchRows, startIndex) {
       return parsed.records;
     } catch (err) {
       lastError = err;
-      // Exponential backoff before retrying a failed batch.
       if (attempt < MAX_RETRIES) {
         await new Promise((r) => setTimeout(r, attempt * 500));
       }
     }
   }
-  // All retries exhausted - mark every row in this batch as skipped rather
-  // than failing the whole import.
   return batchRows.map((_, i) => ({
     source_row_index: startIndex + i,
     skipped: true,
@@ -137,10 +128,6 @@ async function callGeminiBatch(model, batchRows, startIndex) {
   }));
 }
 
-/**
- * Extracts CRM records from raw parsed CSV rows using Gemini, in batches,
- * with retries per batch. Returns records in the same order as the input.
- */
 export async function extractCrmRecords(rows, { onProgress } = {}) {
   const genAI = getClient();
   const model = genAI.getGenerativeModel({

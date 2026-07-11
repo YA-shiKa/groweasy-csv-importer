@@ -6,11 +6,6 @@ import { validateRecord } from "../services/validator.js";
 
 export const importRouter = Router();
 
-/**
- * Step 2 support (optional): lets the frontend delegate CSV parsing to the
- * backend too if it wants a consistent parser between preview and import.
- * No AI calls happen here - purely structural.
- */
 importRouter.post("/parse-preview", csvUpload.single("file"), (req, res, next) => {
   try {
     if (!req.file) {
@@ -26,11 +21,6 @@ importRouter.post("/parse-preview", csvUpload.single("file"), (req, res, next) =
   }
 });
 
-/**
- * Step 3/4: the only endpoint that triggers AI processing. Accepts either
- * a raw CSV file upload OR a pre-parsed rows array (so the frontend can
- * reuse the exact rows it already previewed instead of re-uploading).
- */
 importRouter.post("/import", csvUpload.single("file"), async (req, res, next) => {
   try {
     let rows;
