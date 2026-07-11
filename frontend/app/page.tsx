@@ -5,6 +5,7 @@ import Papa from "papaparse";
 import Dropzone from "@/components/Dropzone";
 import PreviewTable from "@/components/PreviewTable";
 import ResultsTable from "@/components/ResultsTable";
+import { downloadCrmRecordsAsCsv } from "@/lib/csvExport";
 import ProgressBar from "@/components/ProgressBar";
 import ThemeToggle from "@/components/ThemeToggle";
 import { importRows, ApiError } from "@/lib/api";
@@ -140,6 +141,13 @@ export default function Home() {
               <StatCard label="Skipped" value={result.totalSkipped} tone="bad" />
             </div>
             <div className="flex justify-end">
+            <button
+  onClick={() => downloadCrmRecordsAsCsv(result.imported, `${fileName.replace(/\.csv$/i, "")}_crm_import.csv`)}
+  disabled={result.imported.length === 0}
+  className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+>
+  Download CSV ({result.imported.length.toLocaleString()} records)
+</button>
               <button
                 onClick={reset}
                 className="rounded-full border border-ink/15 px-4 py-2 text-sm font-medium hover:bg-ink/5 dark:border-paper/15 dark:hover:bg-paper/10"
