@@ -7,6 +7,15 @@ schema using Gemini.
 
 Built for: **Software Developer Intern** application at GrowEasy.
 
+## Live Demo
+
+- **App:** https://groweasy-csv-importer-sand.vercel.app
+- **API:** https://groweasy-csv-importer-5pxq.onrender.com
+
+> Backend is hosted on Render's free tier and sleeps after 15 minutes of
+> inactivity. The first request after idle time may take 30–60 seconds to
+> respond while it wakes up.
+
 ---
 
 ## How it works
@@ -19,8 +28,9 @@ Built for: **Software Developer Intern** application at GrowEasy.
 ```
 
 - **Frontend** (Next.js 14, App Router, TypeScript, Tailwind) — drag & drop
-  upload, client-side CSV parsing for an instant preview, a confirm step, and
-  a results view split into "Imported" / "Skipped" tabs.
+  upload, client-side CSV parsing for an instant preview, a confirm step, a
+  results view split into "Imported" / "Skipped" tabs, and a CSV export
+  button to download the mapped records.
 - **Backend** (Node.js + Express) — re-parses the CSV server-side, batches
   rows to Gemini with a strict JSON schema, validates the AI's output against
   GrowEasy's business rules, and returns structured results.
@@ -51,7 +61,7 @@ groweasy-csv-importer/
 ├── frontend/
 │   ├── app/                         # page.tsx = the 4-step flow
 │   ├── components/                  # Dropzone, PreviewTable, ResultsTable, ...
-│   └── lib/                         # shared types + API client
+│   └── lib/                         # shared types, API client, CSV export
 ├── samples/                         # example CSVs in different formats
 └── docker-compose.yml
 ```
@@ -64,13 +74,6 @@ groweasy-csv-importer/
 
 Go to **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** →
 "Create API key".
-
-> ℹ️ As of 2026, AI Studio issues "Auth keys" starting with `AQ.Ab...` by
-> default — this replaced the older `AIzaSy...` "Standard key" format, which
-> Google is phasing out (unrestricted Standard keys stopped working in June
-> 2026, all Standard keys stop working in September 2026). If your key
-> starts with `AQ.`, that's correct — nothing to fix. This backend uses the
-> native Gemini SDK, which works fine with `AQ.` keys.
 
 ### 2. Backend
 
@@ -104,11 +107,13 @@ Upload any file from `/samples`:
 - `google_ads_export.csv` — Google Ads style, with a multi-email row
 - `messy_real_estate_export.csv` — inconsistent naming, two mobile columns,
   one row with no contact info at all (should end up in "Skipped")
+- `linebreak_test.csv` — a field with an embedded multi-line remark, to
+  confirm line breaks are escaped instead of corrupting the row
 
 ### Docker (optional)
 
 ```bash
-GEMINI_API_KEY=AIzaSy... docker compose up --build
+GEMINI_API_KEY=AQ.your_key_here docker compose up --build
 ```
 
 ---
@@ -169,19 +174,10 @@ Body: `{ "rows": [...] }` (JSON, from the confirmed preview) **or**
 
 - **Frontend** → Vercel: set `NEXT_PUBLIC_API_BASE_URL` to your deployed
   backend URL.
-- **Backend** → Railway / Render: set `GEMINI_API_KEY`, `FRONTEND_ORIGIN`
-  (your Vercel URL), and optionally `BATCH_SIZE` / `MAX_RETRIES`.
+- **Backend** → Render (free tier): set `GEMINI_API_KEY`, `FRONTEND_ORIGIN`
+  (your exact Vercel URL, no trailing slash — CORS matching is exact-string),
+  and optionally `BATCH_SIZE` / `MAX_RETRIES`. Railway's free offering is now
+  trial-credit-only rather than a permanent free tier, so Render is the
+  better fit for a project like this.
 
 ---
-
-## What's implemented from the bonus list
-
-- ✅ Drag & drop upload + file picker
-- ✅ Progress indicator during AI processing
-- ✅ Retry mechanism for failed AI batches (per-batch, exponential backoff)
-- ✅ Dark mode
-- ✅ Unit tests (`npm test` in `backend/`)
-- ✅ Docker setup (`docker-compose.yml`)
-- ✅ This README
-- ⬜ Virtualized table (preview caps rendered rows at 200 with a notice
-  instead — noted as a known simplification for very large files)
