@@ -170,14 +170,4 @@ Body: `{ "rows": [...] }` (JSON, from the confirmed preview) **or**
 
 ---
 
-## Deployment
 
-- **Frontend** → Vercel: set `NEXT_PUBLIC_API_BASE_URL` to your deployed
-  backend URL.
-- **Backend** → Render (free tier): set `GEMINI_API_KEY`, `FRONTEND_ORIGIN`
-  (your exact Vercel URL, no trailing slash — CORS matching is exact-string),
-  and optionally `BATCH_SIZE` / `MAX_RETRIES`. Railway's free offering is now
-  trial-credit-only rather than a permanent free tier, so Render is the
-  better fit for a project like this.
-
----
