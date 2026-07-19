@@ -5,70 +5,86 @@ import Papa from "papaparse";
 import Dropzone from "@/components/Dropzone";
 import PreviewTable from "@/components/PreviewTable";
 import ResultsTable from "@/components/ResultsTable";
-import { downloadCrmRecordsAsCsv } from "@/lib/csvExport";
 import ProgressBar from "@/components/ProgressBar";
 import ThemeToggle from "@/components/ThemeToggle";
 import { importRows, ApiError } from "@/lib/api";
+import { downloadCrmRecordsAsCsv } from "@/lib/csvExport";
 import type { ImportResponse, RawRow } from "@/lib/types";
 
+// the 4 steps of the import flow
 type Step = "upload" | "preview" | "processing" | "results";
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function Home() {
   const [step, setStep] = useState<Step>("upload");
-  const [fileName, setFileName] = useState<string>("");
+  const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<RawRow[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResponse | null>(null);
 
+  // step 1 -> step 2: user picked a file, parse it just to show a preview
   function handleFile(file: File) {
     setUploadError(null);
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setUploadError("That doesn't look like a CSV file. Please upload a .csv file.");
+      setUploadError("Please upload a .csv file.");
       return;
     }
-    if (file.size > MAX_SIZE) {
-      setUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max size is 5MB.`);
+
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError("File is too large. Max size is 5MB.");
       return;
     }
 
     setFileName(file.name);
-    Papa.parse<RawRow>(file, {
+
+    Papa.parse(file, {
       header: true,
       skipEmptyLines: "greedy",
-      transformHeader: (h) => h.trim(),
-      complete: (res) => {
-        const cleanRows = res.data.filter((r) => Object.values(r).some((v) => (v ?? "").toString().trim() !== ""));
+      complete: function (results: any) {
+        // drop rows where every column is empty
+        const cleanRows = results.data.filter((row: RawRow) => {
+          return Object.values(row).some((val) => (val || "").toString().trim() !== "");
+        });
+
         if (cleanRows.length === 0) {
-          setUploadError("This CSV doesn't contain any usable rows.");
+          setUploadError("This CSV doesn't have any usable rows.");
           return;
         }
-        setHeaders(res.meta.fields ?? []);
+
+        setHeaders(results.meta.fields || []);
         setRows(cleanRows);
         setStep("preview");
       },
-      error: (err) => setUploadError(`Couldn't parse this CSV: ${err.message}`),
+      error: function (err: any) {
+        setUploadError("Could not read this CSV: " + err.message);
+      },
     });
   }
 
+  // step 3: user clicked confirm, send rows to backend for AI mapping
   async function handleConfirm() {
     setStep("processing");
     setProcessError(null);
+
     try {
       const data = await importRows(rows);
       setResult(data);
       setStep("results");
     } catch (err) {
-      setProcessError(err instanceof ApiError ? err.message : "Something went wrong while importing. Please try again.");
+      if (err instanceof ApiError) {
+        setProcessError(err.message);
+      } else {
+        setProcessError("Something went wrong. Please try again.");
+      }
       setStep("preview");
     }
   }
 
-  function reset() {
+  function resetEverything() {
     setStep("upload");
     setFileName("");
     setHeaders([]);
@@ -79,125 +95,79 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
-      <header className="mb-10 flex items-center justify-between">
+    <main className="max-w-5xl mx-auto px-6 py-10">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-accent">GrowEasy · Lead Sources</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight">CSV → CRM Importer</h1>
-          <p className="mt-1 text-sm text-ink/50 dark:text-paper/50">
-            Upload any lead export. AI maps every column to the CRM schema — no fixed format required.
-          </p>
+          <h1 className="text-2xl font-bold">CSV to CRM Importer</h1>
+          <p className="text-sm text-gray-500">Upload a lead CSV and let AI map it into GrowEasy's format.</p>
         </div>
         <ThemeToggle />
-      </header>
+      </div>
 
-      <Steps current={step} />
+      {step === "upload" && <Dropzone onFileAccepted={handleFile} error={uploadError} />}
 
-      <section className="mt-8">
-        {step === "upload" && <Dropzone onFileAccepted={handleFile} error={uploadError} />}
-
-        {step === "preview" && (
-          <div className="flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{fileName}</p>
-                <p className="text-sm text-ink/50 dark:text-paper/50">
-                  {rows.length.toLocaleString()} rows detected · {headers.length} columns
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={reset}
-                  className="rounded-full border border-ink/15 px-4 py-2 text-sm font-medium hover:bg-ink/5 dark:border-paper/15 dark:hover:bg-paper/10"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  Confirm import ({rows.length.toLocaleString()} rows)
-                </button>
-              </div>
+      {step === "preview" && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-medium">{fileName}</p>
+              <p className="text-sm text-gray-500">{rows.length} rows, {headers.length} columns</p>
             </div>
-            {processError && (
-              <p role="alert" className="rounded-lg bg-signal-bad/10 px-4 py-2 text-sm text-signal-bad">
-                {processError}
-              </p>
-            )}
-            <PreviewTable headers={headers} rows={rows} />
-          </div>
-        )}
-
-        {step === "processing" && (
-          <ProgressBar label={`Mapping ${rows.length.toLocaleString()} rows to CRM fields with Gemini…`} />
-        )}
-
-        {step === "results" && result && (
-          <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-3 gap-4">
-              <StatCard label="Total rows" value={result.totalRows} />
-              <StatCard label="Imported" value={result.totalImported} tone="good" />
-              <StatCard label="Skipped" value={result.totalSkipped} tone="bad" />
-            </div>
-            <div className="flex justify-end">
-            <button
-  onClick={() => downloadCrmRecordsAsCsv(result.imported, `${fileName.replace(/\.csv$/i, "")}_crm_import.csv`)}
-  disabled={result.imported.length === 0}
-  className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
->
-  Download CSV ({result.imported.length.toLocaleString()} records)
-</button>
-              <button
-                onClick={reset}
-                className="rounded-full border border-ink/15 px-4 py-2 text-sm font-medium hover:bg-ink/5 dark:border-paper/15 dark:hover:bg-paper/10"
-              >
-                Import another file
+            <div className="flex gap-2">
+              <button onClick={resetEverything} className="px-4 py-2 rounded-full border text-sm">
+                Cancel
+              </button>
+              <button onClick={handleConfirm} className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm">
+                Confirm import ({rows.length} rows)
               </button>
             </div>
-            <ResultsTable imported={result.imported} skipped={result.skipped} />
           </div>
-        )}
-      </section>
+
+          {processError && (
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-4">{processError}</p>
+          )}
+
+          <PreviewTable headers={headers} rows={rows} />
+        </div>
+      )}
+
+      {step === "processing" && (
+        <ProgressBar label={"Mapping " + rows.length + " rows with AI..."} />
+      )}
+
+      {step === "results" && result && (
+        <div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="border rounded-xl p-4">
+              <p className="text-xs text-gray-500">Total rows</p>
+              <p className="text-2xl font-bold">{result.totalRows}</p>
+            </div>
+            <div className="border rounded-xl p-4">
+              <p className="text-xs text-gray-500">Imported</p>
+              <p className="text-2xl font-bold text-green-600">{result.totalImported}</p>
+            </div>
+            <div className="border rounded-xl p-4">
+              <p className="text-xs text-gray-500">Skipped</p>
+              <p className="text-2xl font-bold text-red-600">{result.totalSkipped}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mb-4">
+            <button
+              onClick={() => downloadCrmRecordsAsCsv(result.imported, fileName.replace(".csv", "") + "_crm_import.csv")}
+              disabled={result.imported.length === 0}
+              className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm disabled:opacity-40"
+            >
+              Download CSV ({result.imported.length})
+            </button>
+            <button onClick={resetEverything} className="px-4 py-2 rounded-full border text-sm">
+              Import another file
+            </button>
+          </div>
+
+          <ResultsTable imported={result.imported} skipped={result.skipped} />
+        </div>
+      )}
     </main>
-  );
-}
-
-function Steps({ current }: { current: Step }) {
-  const stepOrder: Step[] = ["upload", "preview", "processing", "results"];
-  const labels: Record<Step, string> = {
-    upload: "Upload",
-    preview: "Preview",
-    processing: "Processing",
-    results: "Result",
-  };
-  const currentIndex = stepOrder.indexOf(current);
-
-  return (
-    <ol className="flex items-center gap-2 font-mono text-xs uppercase tracking-wide">
-      {stepOrder.map((s, i) => (
-        <li key={s} className="flex items-center gap-2">
-          <span
-            className={`flex h-6 w-6 items-center justify-center rounded-full ${
-              i <= currentIndex ? "bg-ink text-paper dark:bg-paper dark:text-ink" : "bg-ink/10 text-ink/40 dark:bg-paper/10 dark:text-paper/40"
-            }`}
-          >
-            {i + 1}
-          </span>
-          <span className={i <= currentIndex ? "text-ink dark:text-paper" : "text-ink/40 dark:text-paper/40"}>{labels[s]}</span>
-          {i < stepOrder.length - 1 && <span className="mx-1 h-px w-8 bg-ink/10 dark:bg-paper/10" />}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function StatCard({ label, value, tone }: { label: string; value: number; tone?: "good" | "bad" }) {
-  const toneClass = tone === "good" ? "text-signal-good" : tone === "bad" ? "text-signal-bad" : "text-ink dark:text-paper";
-  return (
-    <div className="rounded-2xl border border-ink/10 px-5 py-4 dark:border-paper/10">
-      <p className="font-mono text-xs uppercase tracking-wide text-ink/50 dark:text-paper/50">{label}</p>
-      <p className={`font-display text-3xl font-bold ${toneClass}`}>{value.toLocaleString()}</p>
-    </div>
   );
 }

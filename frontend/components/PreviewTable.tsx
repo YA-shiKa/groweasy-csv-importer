@@ -2,41 +2,34 @@
 
 import type { RawRow } from "@/lib/types";
 
-interface PreviewTableProps {
-  headers: string[];
-  rows: RawRow[];
-}
+// only render the first 200 rows so the browser doesn't slow down on huge files
+const MAX_ROWS_TO_SHOW = 200;
 
-const MAX_PREVIEW_ROWS = 200; // avoid rendering huge DOM trees for very large CSVs
-
-export default function PreviewTable({ headers, rows }: PreviewTableProps) {
-  const visibleRows = rows.slice(0, MAX_PREVIEW_ROWS);
+export default function PreviewTable({ headers, rows }: { headers: string[]; rows: RawRow[] }) {
+  const rowsToShow = rows.slice(0, MAX_ROWS_TO_SHOW);
 
   return (
-    <div className="rounded-2xl border border-ink/10 dark:border-paper/10">
-      <div className="max-h-[420px] overflow-auto rounded-2xl">
-        <table className="w-full min-w-max border-collapse text-left text-sm">
+    <div className="border rounded-xl overflow-hidden">
+      <div className="overflow-auto max-h-[420px]">
+        <table className="w-full text-sm border-collapse">
           <thead>
             <tr>
-              {headers.map((h) => (
+              {headers.map((header) => (
                 <th
-                  key={h}
-                  className="sticky-head scroll-shadow whitespace-nowrap border-b border-ink/10 bg-paper px-4 py-3 font-mono text-xs font-medium uppercase tracking-wide text-ink/60 dark:border-paper/10 dark:bg-slate-950 dark:text-paper/60"
+                  key={header}
+                  className="sticky top-0 bg-white border-b px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap"
                 >
-                  {h}
+                  {header}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((row, i) => (
-              <tr
-                key={i}
-                className="odd:bg-ink/[0.015] hover:bg-accent-soft/60 dark:odd:bg-paper/[0.02] dark:hover:bg-accent/10"
-              >
-                {headers.map((h) => (
-                  <td key={h} className="whitespace-nowrap px-4 py-2.5 text-ink/80 dark:text-paper/80">
-                    {row[h] || <span className="text-ink/25 dark:text-paper/25">—</span>}
+            {rowsToShow.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b">
+                {headers.map((header) => (
+                  <td key={header} className="px-3 py-2 whitespace-nowrap">
+                    {row[header] ? row[header] : <span className="text-gray-300">-</span>}
                   </td>
                 ))}
               </tr>
@@ -44,10 +37,10 @@ export default function PreviewTable({ headers, rows }: PreviewTableProps) {
           </tbody>
         </table>
       </div>
-      {rows.length > MAX_PREVIEW_ROWS && (
-        <p className="border-t border-ink/10 px-4 py-2 text-xs text-ink/50 dark:border-paper/10 dark:text-paper/50">
-          Showing first {MAX_PREVIEW_ROWS.toLocaleString()} of {rows.length.toLocaleString()} rows. All rows will
-          be sent for import.
+
+      {rows.length > MAX_ROWS_TO_SHOW && (
+        <p className="text-xs text-gray-500 px-3 py-2 border-t">
+          Showing first {MAX_ROWS_TO_SHOW} of {rows.length} rows. All rows will still be imported.
         </p>
       )}
     </div>

@@ -1,9 +1,12 @@
+// These are the CRM fields GrowEasy wants back from the AI.
+// Keeping the allowed values here so the frontend and backend agree.
+
 export const CRM_STATUS_VALUES = [
   "GOOD_LEAD_FOLLOW_UP",
   "DID_NOT_CONNECT",
   "BAD_LEAD",
   "SALE_DONE",
-] as const;
+];
 
 export const DATA_SOURCE_VALUES = [
   "leads_on_demand",
@@ -11,10 +14,7 @@ export const DATA_SOURCE_VALUES = [
   "eden_park",
   "varah_swamy",
   "sarjapur_plots",
-] as const;
-
-export type CrmStatus = (typeof CRM_STATUS_VALUES)[number];
-export type DataSource = (typeof DATA_SOURCE_VALUES)[number];
+];
 
 export interface CrmRecord {
   created_at: string | null;
@@ -27,9 +27,9 @@ export interface CrmRecord {
   state: string | null;
   country: string | null;
   lead_owner: string | null;
-  crm_status: CrmStatus | null;
+  crm_status: string | null;
   crm_note: string | null;
-  data_source: DataSource | null;
+  data_source: string | null;
   possession_time: string | null;
   description: string | null;
 }
@@ -48,4 +48,5 @@ export interface ImportResponse {
   totalRows: number;
 }
 
+// one row from the raw uploaded CSV, before AI mapping
 export type RawRow = Record<string, string>;

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { CrmRecord, SkippedRecord } from "@/lib/types";
 
-const CRM_COLUMNS: (keyof CrmRecord)[] = [
+// the columns we show in the results table, in a sensible order
+const COLUMNS = [
   "name",
   "email",
   "country_code",
@@ -21,147 +22,108 @@ const CRM_COLUMNS: (keyof CrmRecord)[] = [
   "description",
 ];
 
-const STATUS_STYLES: Record<string, string> = {
-  GOOD_LEAD_FOLLOW_UP: "bg-signal-good/10 text-signal-good",
-  SALE_DONE: "bg-accent-soft text-accent dark:bg-accent/20",
-  DID_NOT_CONNECT: "bg-signal-neutral/15 text-signal-neutral",
-  BAD_LEAD: "bg-signal-bad/10 text-signal-bad",
-};
-
 function StatusBadge({ status }: { status: string | null }) {
-  if (!status) return <span className="text-ink/25 dark:text-paper/25">—</span>;
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] font-medium ${
-        STATUS_STYLES[status] ?? "bg-ink/5 text-ink/60"
-      }`}
-    >
-      {status}
-    </span>
-  );
+  if (!status) {
+    return <span className="text-gray-300">-</span>;
+  }
+
+  let color = "bg-gray-100 text-gray-600";
+  if (status === "GOOD_LEAD_FOLLOW_UP") color = "bg-green-100 text-green-700";
+  if (status === "SALE_DONE") color = "bg-blue-100 text-blue-700";
+  if (status === "BAD_LEAD") color = "bg-red-100 text-red-700";
+  if (status === "DID_NOT_CONNECT") color = "bg-yellow-100 text-yellow-700";
+
+  return <span className={"px-2 py-1 rounded text-xs font-medium " + color}>{status}</span>;
 }
 
-interface ResultsTableProps {
-  imported: CrmRecord[];
-  skipped: SkippedRecord[];
-}
-
-export default function ResultsTable({ imported, skipped }: ResultsTableProps) {
-  const [tab, setTab] = useState<"imported" | "skipped">("imported");
+export default function ResultsTable({ imported, skipped }: { imported: CrmRecord[]; skipped: SkippedRecord[] }) {
+  const [activeTab, setActiveTab] = useState<"imported" | "skipped">("imported");
 
   return (
     <div>
-      <div className="mb-4 flex gap-2">
-        <TabButton active={tab === "imported"} onClick={() => setTab("imported")} count={imported.length} label="Imported" tone="good" />
-        <TabButton active={tab === "skipped"} onClick={() => setTab("skipped")} count={skipped.length} label="Skipped" tone="bad" />
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={() => setActiveTab("imported")}
+          className={
+            "px-4 py-2 rounded-full text-sm font-medium " +
+            (activeTab === "imported" ? "bg-black text-white" : "bg-gray-100")
+          }
+        >
+          Imported ({imported.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("skipped")}
+          className={
+            "px-4 py-2 rounded-full text-sm font-medium " +
+            (activeTab === "skipped" ? "bg-black text-white" : "bg-gray-100")
+          }
+        >
+          Skipped ({skipped.length})
+        </button>
       </div>
 
-      {tab === "imported" ? (
-        <div className="rounded-2xl border border-ink/10 dark:border-paper/10">
-          <div className="max-h-[480px] overflow-auto rounded-2xl">
-            <table className="w-full min-w-max border-collapse text-left text-sm">
-              <thead>
-                <tr>
-                  {CRM_COLUMNS.map((c) => (
-                    <th
-                      key={c}
-                      className="sticky-head scroll-shadow whitespace-nowrap border-b border-ink/10 bg-paper px-4 py-3 font-mono text-xs font-medium uppercase tracking-wide text-ink/60 dark:border-paper/10 dark:bg-slate-950 dark:text-paper/60"
-                    >
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {imported.map((rec, i) => (
-                  <tr key={i} className="odd:bg-ink/[0.015] hover:bg-accent-soft/60 dark:odd:bg-paper/[0.02] dark:hover:bg-accent/10">
-                    {CRM_COLUMNS.map((c) => (
-                      <td key={c} className="max-w-[220px] truncate whitespace-nowrap px-4 py-2.5 text-ink/80 dark:text-paper/80">
-                        {c === "crm_status" ? (
-                          <StatusBadge status={rec.crm_status} />
-                        ) : rec[c] ? (
-                          String(rec[c])
+      {activeTab === "imported" && (
+        <div className="border rounded-xl overflow-auto max-h-[480px]">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                {COLUMNS.map((col) => (
+                  <th key={col} className="sticky top-0 bg-white border-b px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {imported.map((record, i) => (
+                <tr key={i} className="border-b">
+                  {COLUMNS.map((col) => {
+                    const value = (record as any)[col];
+                    return (
+                      <td key={col} className="px-3 py-2 whitespace-nowrap max-w-[220px] truncate">
+                        {col === "crm_status" ? (
+                          <StatusBadge status={record.crm_status} />
+                        ) : value ? (
+                          value
                         ) : (
-                          <span className="text-ink/25 dark:text-paper/25">—</span>
+                          <span className="text-gray-300">-</span>
                         )}
                       </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {imported.length === 0 && <EmptyState message="No records were successfully imported." />}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-ink/10 dark:border-paper/10">
-          <div className="max-h-[480px] overflow-auto rounded-2xl">
-            <table className="w-full min-w-max border-collapse text-left text-sm">
-              <thead>
-                <tr>
-                  <th className="sticky-head scroll-shadow whitespace-nowrap border-b border-ink/10 bg-paper px-4 py-3 font-mono text-xs font-medium uppercase tracking-wide text-ink/60 dark:border-paper/10 dark:bg-slate-950 dark:text-paper/60">
-                    Row #
-                  </th>
-                  <th className="sticky-head scroll-shadow whitespace-nowrap border-b border-ink/10 bg-paper px-4 py-3 font-mono text-xs font-medium uppercase tracking-wide text-ink/60 dark:border-paper/10 dark:bg-slate-950 dark:text-paper/60">
-                    Reason
-                  </th>
+                    );
+                  })}
                 </tr>
-              </thead>
-              <tbody>
-                {skipped.map((s, i) => (
-                  <tr key={i} className="odd:bg-ink/[0.015] dark:odd:bg-paper/[0.02]">
-                    <td className="px-4 py-2.5 font-mono text-ink/60 dark:text-paper/60">{s.source_row_index}</td>
-                    <td className="px-4 py-2.5 text-signal-bad">{s.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {skipped.length === 0 && <EmptyState message="Nothing was skipped — every row had an email or mobile number." />}
+              ))}
+            </tbody>
+          </table>
+          {imported.length === 0 && (
+            <p className="text-center text-gray-400 py-8 text-sm">No records were imported.</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === "skipped" && (
+        <div className="border rounded-xl overflow-auto max-h-[480px]">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="sticky top-0 bg-white border-b px-3 py-2 text-left text-xs font-semibold text-gray-600">Row #</th>
+                <th className="sticky top-0 bg-white border-b px-3 py-2 text-left text-xs font-semibold text-gray-600">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {skipped.map((item, i) => (
+                <tr key={i} className="border-b">
+                  <td className="px-3 py-2">{item.source_row_index}</td>
+                  <td className="px-3 py-2 text-red-600">{item.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {skipped.length === 0 && (
+            <p className="text-center text-gray-400 py-8 text-sm">Nothing was skipped.</p>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-function TabButton({
-  active,
-  onClick,
-  count,
-  label,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  count: number;
-  label: string;
-  tone: "good" | "bad";
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-        active
-          ? "bg-ink text-paper dark:bg-paper dark:text-ink"
-          : "bg-ink/5 text-ink/60 hover:bg-ink/10 dark:bg-paper/5 dark:text-paper/60 dark:hover:bg-paper/10"
-      }`}
-    >
-      {label}
-      <span
-        className={`rounded-full px-2 py-0.5 font-mono text-xs ${
-          active
-            ? tone === "good"
-              ? "bg-signal-good/20 text-signal-good"
-              : "bg-signal-bad/20 text-signal-bad"
-            : "bg-ink/10 dark:bg-paper/10"
-        }`}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return <p className="px-4 py-10 text-center text-sm text-ink/40 dark:text-paper/40">{message}</p>;
 }

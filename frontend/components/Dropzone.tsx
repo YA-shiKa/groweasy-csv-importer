@@ -1,82 +1,61 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-interface DropzoneProps {
-  onFileAccepted: (file: File) => void;
-  error: string | null;
-}
+export default function Dropzone({ onFileAccepted, error }: { onFileAccepted: (file: File) => void; error: string | null }) {
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-export default function Dropzone({ onFileAccepted, error }: DropzoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  function handleFile(file: File | undefined) {
+    if (!file) return;
+    onFileAccepted(file);
+  }
 
-  const validateAndAccept = useCallback(
-    (file: File | undefined) => {
-      if (!file) return;
-      if (!file.name.toLowerCase().endsWith(".csv")) {
-        onFileAccepted(file); // let parent surface the "invalid type" error via parse failure
-        return;
-      }
-      if (file.size > MAX_SIZE) {
-        onFileAccepted(file);
-        return;
-      }
-      onFileAccepted(file);
-    },
-    [onFileAccepted]
-  );
+  function openFilePicker() {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }
 
   return (
     <div>
       <div
-        role="button"
-        tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
+        onClick={openFilePicker}
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragging(true);
+          setDragging(true);
         }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
           e.preventDefault();
-          setIsDragging(false);
-          validateAndAccept(e.dataTransfer.files?.[0]);
+          setDragging(false);
+          handleFile(e.dataTransfer.files[0]);
         }}
-        className={`group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-8 py-16 text-center transition-all duration-200
-          ${
-            isDragging
-              ? "border-accent bg-accent-soft dark:bg-accent/10 scale-[1.01]"
-              : "border-ink/15 hover:border-accent/60 dark:border-paper/15"
-          }`}
+        className={
+          "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer " +
+          (dragging ? "border-blue-500 bg-blue-50" : "border-gray-300")
+        }
       >
-        <div
-          className={`flex h-14 w-14 items-center justify-center rounded-xl border font-mono text-xs transition-transform ${
-            isDragging ? "-translate-y-1 border-accent text-accent" : "border-ink/20 text-ink/50 dark:border-paper/20 dark:text-paper/50"
-          }`}
-        >
-          .csv
-        </div>
-        <p className="font-display text-lg font-medium">
-          {isDragging ? "Drop it in" : "Drag a CSV here, or click to browse"}
+        <p className="font-medium text-lg mb-1">
+          {dragging ? "Drop the file" : "Click or drag a CSV file here"}
         </p>
-        <p className="max-w-sm text-sm text-ink/50 dark:text-paper/50">
-          Facebook exports, Google Ads exports, Excel sheets, real-estate CRM
-          exports — column names don&apos;t need to match anything. Max 5MB.
+        <p className="text-sm text-gray-500">
+          Any column layout works. Max file size 5MB.
         </p>
+
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
           accept=".csv,text/csv"
           className="hidden"
-          onChange={(e) => validateAndAccept(e.target.files?.[0])}
+          onChange={(e) => handleFile(e.target.files?.[0])}
         />
       </div>
+
       {error && (
-        <p role="alert" className="mt-3 rounded-lg bg-signal-bad/10 px-4 py-2 text-sm text-signal-bad">
+        <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
           {error}
         </p>
       )}

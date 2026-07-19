@@ -3,25 +3,24 @@
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
+  // on first load, match whatever the user's system is set to
   useEffect(() => {
-    const preferred =
-      window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    setDark(preferred);
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setDarkMode(prefersDark);
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
 
   return (
     <button
-      onClick={() => setDark((d) => !d)}
-      aria-label="Toggle dark mode"
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/15 text-sm transition-colors hover:bg-ink/5 dark:border-paper/15 dark:hover:bg-paper/10"
+      onClick={() => setDarkMode(!darkMode)}
+      className="w-9 h-9 rounded-full border flex items-center justify-center text-sm"
     >
-      {dark ? "☀" : "☾"}
+      {darkMode ? "☀" : "☾"}
     </button>
   );
 }
