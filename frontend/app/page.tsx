@@ -98,8 +98,8 @@ export default function Home() {
     <main className="max-w-5xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold">CSV to CRM Importer</h1>
-          <p className="text-sm text-gray-500">Upload a lead CSV and let AI map it into GrowEasy's format.</p>
+          <h1 className="text-2xl font-bold">AI-powered CSV Importer</h1>
+          <p className="text-sm text-gray-500">Upload a CSV file and let AI map it into the CRM format.</p>
         </div>
         <ThemeToggle />
       </div>
