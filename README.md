@@ -1,9 +1,9 @@
-# GrowEasy CSV → CRM Importer
+# AI-powered CSV Importer
 
-An AI-powered CSV importer that ingests lead exports in **any column layout**
+This is a CSV importer that can read lead files in **any column layout**
 (Facebook Lead Ads, Google Ads, Excel sheets, real-estate CRM exports, sales
-reports, manually built spreadsheets) and maps them into GrowEasy's fixed CRM
-schema using Gemini.
+reports, or a spreadsheet someone made by hand) and turns them into
+GrowEasy's CRM format using Gemini.
 
 Built for: **Software Developer Intern** application at GrowEasy.
 
@@ -12,9 +12,9 @@ Built for: **Software Developer Intern** application at GrowEasy.
 - **App:** https://groweasy-csv-importer-sand.vercel.app
 - **API:** https://groweasy-csv-importer-5pxq.onrender.com
 
-> Backend is hosted on Render's free tier and sleeps after 15 minutes of
-> inactivity. The first request after idle time may take 30–60 seconds to
-> respond while it wakes up.
+> The backend runs on Render's free plan, so it goes to sleep after 15
+> minutes with no traffic. The first request after that can take 30–60
+> seconds to respond while it wakes back up.
 
 ---
 
@@ -27,19 +27,19 @@ Built for: **Software Developer Intern** application at GrowEasy.
 └────────────┘      └──────────────┘      └───────────────┘      └────────────┘
 ```
 
-- **Frontend** (Next.js 14, App Router, TypeScript, Tailwind) — drag & drop
-  upload, client-side CSV parsing for an instant preview, a confirm step, a
-  results view split into "Imported" / "Skipped" tabs, and a CSV export
-  button to download the mapped records.
-- **Backend** (Node.js + Express) — re-parses the CSV server-side, batches
-  rows to Gemini with a strict JSON schema, validates the AI's output against
-  GrowEasy's business rules, and returns structured results.
-- **AI** (Gemini `2.5-flash` via `@google/generative-ai`) — does the actual
-  field mapping. See [Prompt design](#prompt-design) below for how it's
-  constrained to avoid hallucinated enum values.
+- **Frontend** (Next.js 14, App Router, TypeScript, Tailwind) — you can drag
+  and drop a file or click to upload it, see a preview of the raw rows, hit
+  confirm, and then see the results split into "Imported" and "Skipped"
+  tabs, with a button to download the final CRM data as a CSV.
+- **Backend** (Node.js + Express) — reads the CSV, sends the rows to Gemini
+  in batches with a strict format it has to follow, double-checks what
+  Gemini returns against GrowEasy's rules, and sends back the results.
+- **AI** (Gemini `2.5-flash`) — does the actual work of figuring out which
+  column means what. See [Prompt design](#prompt-design) below for how it's
+  kept from making up values that aren't allowed.
 
-No AI call happens until the user clicks **Confirm** — steps 1–2 are pure
-client-side parsing, exactly as the assignment specifies.
+The AI is never called until you click **Confirm**. Before that, everything
+happens in the browser — this matches what the assignment asked for.
 
 ---
 
@@ -48,21 +48,21 @@ client-side parsing, exactly as the assignment specifies.
 ```
 groweasy-csv-importer/
 ├── backend/
-│   ├── server.js                    # Express entrypoint
+│   ├── server.js                    # starts the Express server
 │   └── src/
-│       ├── constants.js             # CRM enums shared by prompt + validator
-│       ├── routes/importRoutes.js   # /api/parse-preview, /api/import
+│       ├── constants.js             # the CRM field values that are allowed
+│       ├── routes/importRoutes.js   # the two API routes
 │       ├── services/
-│       │   ├── csvParser.js         # header-agnostic CSV -> row objects
-│       │   ├── geminiExtractor.js   # batched AI extraction + retries
-│       │   └── validator.js         # server-side safety net on AI output
-│       ├── middleware/              # multer upload + error handling
-│       └── tests/                   # unit tests (node:test)
+│       │   ├── csvParser.js         # turns raw CSV text into rows
+│       │   ├── geminiExtractor.js   # sends rows to Gemini in batches, retries on failure
+│       │   └── validator.js         # double-checks Gemini's output before it goes out
+│       ├── middleware/              # file upload handling + error handling
+│       └── tests/                   # unit tests
 ├── frontend/
-│   ├── app/                         # page.tsx = the 4-step flow
-│   ├── components/                  # Dropzone, PreviewTable, ResultsTable, ...
-│   └── lib/                         # shared types, API client, CSV export
-├── samples/                         # example CSVs in different formats
+│   ├── app/                         # page.tsx has the main 4-step flow
+│   ├── components/                  # upload box, preview table, results table, etc.
+│   └── lib/                         # shared types, API calls, CSV download logic
+├── samples/                         # example CSV files to try
 └── docker-compose.yml
 ```
 
@@ -72,8 +72,8 @@ groweasy-csv-importer/
 
 ### 1. Get a Gemini API key
 
-Go to **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** →
-"Create API key".
+Go to **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** and
+click "Create API key".
 
 ### 2. Backend
 
@@ -81,10 +81,11 @@ Go to **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** →
 cd backend
 cp .env.example .env      # then paste your GEMINI_API_KEY into .env
 npm install
-npm run dev                # http://localhost:8080
+npm run dev                # runs on http://localhost:8080
 ```
 
-Run the unit tests (pure logic, no API key needed):
+To run the unit tests (no API key needed for these, they just test the plain
+logic):
 
 ```bash
 npm test
@@ -96,19 +97,21 @@ npm test
 cd frontend
 cp .env.example .env       # NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 npm install
-npm run dev                 # http://localhost:3000
+npm run dev                 # runs on http://localhost:3000
 ```
 
-### 4. Try it
+### 4. Try it out
 
-Upload any file from `/samples`:
+Upload any file from the `/samples` folder:
 
-- `facebook_leads_export.csv` — Facebook-style ad-lead columns
-- `google_ads_export.csv` — Google Ads style, with a multi-email row
-- `messy_real_estate_export.csv` — inconsistent naming, two mobile columns,
-  one row with no contact info at all (should end up in "Skipped")
-- `linebreak_test.csv` — a field with an embedded multi-line remark, to
-  confirm line breaks are escaped instead of corrupting the row
+- `facebook_leads_export.csv` — looks like a Facebook ad lead export
+- `google_ads_export.csv` — looks like a Google Ads export, and has one row
+  with two email addresses in it
+- `messy_real_estate_export.csv` — messy column names, two mobile number
+  columns, and one row with no contact info at all (this one should end up
+  in "Skipped")
+- `linebreak_test.csv` — has a field with a line break inside it, to check
+  that it doesn't break the row
 
 ### Docker (optional)
 
@@ -120,27 +123,26 @@ GEMINI_API_KEY=AQ.your_key_here docker compose up --build
 
 ## Prompt design
 
-The extraction prompt (`backend/src/services/geminiExtractor.js`) does three
-things to keep output reliable:
+The AI extraction logic lives in `backend/src/services/geminiExtractor.js`.
+Three things keep the output reliable:
 
-1. **Structured output schema** — the Gemini call passes a `responseSchema`,
-   so the model is constrained to return well-typed JSON instead of us
-   regex-parsing free text out of a chat response.
-2. **Explicit enum whitelists** — `crm_status` and `data_source` values are
-   listed verbatim in the system prompt with an instruction to leave the
-   field `null` rather than invent a value. This is re-checked server-side in
-   `validator.js` as a safety net — even if the model drifts, an invalid enum
-   value can never reach the CRM.
-3. **Row-index echoing** — every batch item carries a `source_row_index` that
-   the model must echo back, so results can always be aligned to the original
-   CSV row even if the AI reorders or drops something.
+1. **A strict output format** — Gemini has to return JSON that fits a
+   schema we give it, so we don't have to pull data out of a plain text
+   answer ourselves.
+2. **A fixed list of allowed values** — `crm_status` and `data_source` can
+   only be one of a few set values. If Gemini isn't sure which one fits, it
+   leaves the field blank instead of guessing. There's also a check on the
+   backend (`validator.js`) that removes any value that isn't on the list,
+   just in case.
+3. **Row numbers get echoed back** — every row we send has a number
+   attached, and Gemini has to send that same number back with its answer.
+   That way we can always match its output to the right original row.
 
-Rows are sent in batches (`BATCH_SIZE`, default 20) rather than one giant
-prompt, both to stay within token limits on large files and so a single bad
-batch can be retried (`MAX_RETRIES`, default 3, exponential backoff) without
-re-processing the whole file. A batch that exhausts its retries is marked
-skipped with the underlying error as the reason, rather than failing the
-entire import.
+Rows get sent in small batches (20 at a time by default) instead of all at
+once, so we don't hit token limits on big files, and so if one batch fails
+we can just retry that batch instead of redoing the whole file. If a batch
+still fails after a few tries, those rows get marked as skipped with the
+error explained, instead of the whole import failing.
 
 ---
 
@@ -148,15 +150,13 @@ entire import.
 
 ### `POST /api/parse-preview`
 
-`multipart/form-data`, field `file` — parses a CSV and returns headers/rows.
-No AI call. (The frontend currently parses client-side for instant preview;
-this endpoint exists so parsing logic stays consistent if you want the
-backend to be the single source of truth instead.)
+Send a CSV file (`multipart/form-data`, field name `file`) and get back the
+headers and rows. No AI is called here — this is just for reading the file.
 
 ### `POST /api/import`
 
-Body: `{ "rows": [...] }` (JSON, from the confirmed preview) **or**
-`multipart/form-data` with a `file` field.
+Send either `{ "rows": [...] }` as JSON, or a CSV file, and this is where
+the actual AI mapping happens.
 
 ```json
 {
@@ -167,7 +167,3 @@ Body: `{ "rows": [...] }` (JSON, from the confirmed preview) **or**
   "totalRows": 5
 }
 ```
-
----
-
-
